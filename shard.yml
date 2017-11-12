@@ -1,0 +1,25 @@
+name: sharder
+version: 0.1.0
+
+authors:
+  - Mei Boudreau <xanizl@me.com>
+  - Zeyla Hellyer <zey@zey.moe>
+
+dependencies:
+  amqp:
+    github: datanoise/amqp.cr
+  discordcr:
+    github: meew0/discordcr
+  dotenv:
+    github: gdotdesign/cr-dotenv
+  redis:
+    github: stefanwille/crystal-redis
+    version: ~> 1.9.0
+
+targets:
+  sharder:
+    main: src/sharder.cr
+
+crystal: 0.23.1
+
+license: MIT
