@@ -36,6 +36,12 @@ enum Opcode
   VoiceStateUpdate = 21,
 end
 
+macro event(client, method, opcode)
+  {{client}}.{{method}} do |payload|
+    dispatch payload, {{opcode}}
+  end
+end
+
 class Shard
   @amqp : AMQP::Connection
   @channel : AMQP::Channel
@@ -74,119 +80,34 @@ class Shard
     # If any Crystal core devs are there: please look at rust's `serde` library.
     # It is an inspiration to us all.
 
-    client.on_channel_create do |payload|
-      dispatch payload, Opcode::ChannelCreate
-    end
-
-    client.on_channel_delete do |payload|
-      dispatch payload, Opcode::ChannelDelete
-    end
-
-    client.on_channel_update do |payload|
-      dispatch payload, Opcode::ChannelUpdate
-    end
-
-    client.on_guild_ban_add do |payload|
-      dispatch payload, Opcode::GuildBanAdd
-    end
-
-    client.on_guild_ban_remove do |payload|
-      dispatch payload, Opcode::GuildBanRemove
-    end
-
-    client.on_guild_create do |payload|
-      dispatch payload, Opcode::GuildCreate
-    end
-
-    client.on_guild_delete do |payload|
-      dispatch payload, Opcode::GuildDelete
-    end
-
-    client.on_guild_emoji_update do |payload|
-      dispatch payload, Opcode::GuildEmojiUpdate
-    end
-
-    client.on_guild_integrations_update do |payload|
-      dispatch payload, Opcode::GuildIntegrationsUpdate
-    end
-
-    client.on_guild_member_add do |payload|
-      dispatch payload, Opcode::GuildMemberAdd
-    end
-
-    client.on_guild_member_remove do |payload|
-      dispatch payload, Opcode::GuildMemberRemove
-    end
-
-    client.on_guild_member_update do |payload|
-      dispatch payload, Opcode::GuildMemberUpdate
-    end
-
-    client.on_guild_members_chunk do |payload|
-      dispatch payload, Opcode::GuildMembersChunk
-    end
-
-    client.on_guild_role_create do |payload|
-      dispatch payload, Opcode::GuildRoleCreate
-    end
-
-    client.on_guild_role_delete do |payload|
-      dispatch payload, Opcode::GuildRoleDelete
-    end
-
-    client.on_guild_role_update do |payload|
-      dispatch payload, Opcode::GuildRoleUpdate
-    end
-
-    client.on_guild_update do |payload|
-      dispatch payload, Opcode::GuildUpdate
-    end
-
-    client.on_message_create do |payload|
-      dispatch payload, Opcode::MessageCreate
-    end
-
-    client.on_message_delete do |payload|
-      dispatch payload, Opcode::MessageDelete
-    end
-
-    client.on_message_delete_bulk do |payload|
-      dispatch payload, Opcode::MessageDeleteBulk
-    end
-
-    client.on_message_update do |payload|
-      dispatch payload, Opcode::MessageUpdate
-    end
-
-    client.on_presence_update do |payload|
-      dispatch payload, Opcode::PresenceUpdate
-    end
-
-    client.on_ready do |payload|
-      puts "ready as #{payload.user.username} on shard #{@shard_id}"
-
-      dispatch payload, Opcode::Ready
-    end
-
-    client.on_resumed do |payload|
-      dispatch payload, Opcode::Resumed
-    end
-
-    client.on_typing_start do |payload|
-      dispatch payload, Opcode::TypingStart
-    end
-
-    client.on_user_update do |payload|
-      dispatch payload, Opcode::UserUpdate
-    end
-
-    client.on_voice_server_update do |payload|
-      dispatch payload, Opcode::VoiceServerUpdate
-    end
-
-    client.on_voice_state_update do |payload|
-      dispatch payload, Opcode::VoiceStateUpdate
-    end
+    event client, on_channel_create, Opcode::ChannelCreate
+    event client, on_channel_delete, Opcode::ChannelDelete
+    event client, on_channel_update, Opcode::ChannelUpdate
+    event client, on_guild_ban_add, Opcode::GuildBanAdd
+    event client, on_guild_ban_remove, Opcode::GuildBanRemove
+    event client, on_guild_create, Opcode::GuildCreate
+    event client, on_guild_delete, Opcode::GuildDelete
+    event client, on_guild_emoji_update, Opcode::GuildEmojiUpdate
+    event client, on_guild_integrations_update, Opcode::GuildIntegrationsUpdate
+    event client, on_guild_member_add, Opcode::GuildMemberAdd
+    event client, on_guild_member_remove, Opcode::GuildMemberRemove
+    event client, on_guild_member_update, Opcode::GuildMemberUpdate
+    event client, on_guild_members_chunk, Opcode::GuildMembersChunk
+    event client, on_guild_role_create, Opcode::GuildRoleCreate
+    event client, on_guild_role_delete, Opcode::GuildRoleDelete
+    event client, on_guild_role_update, Opcode::GuildRoleUpdate
+    event client, on_guild_update, Opcode::GuildUpdate
+    event client, on_message_create, Opcode::MessageCreate
+    event client, on_message_delete, Opcode::MessageDelete
+    event client, on_message_delete_bulk, Opcode::MessageDeleteBulk
+    event client, on_message_update, Opcode::MessageUpdate
+    event client, on_presence_update, Opcode::PresenceUpdate
+    event client, on_ready, Opcode::Ready
+    event client, on_resumed, Opcode::Resumed
+    event client, on_typing_start, Opcode::TypingStart
+    event client, on_user_update, Opcode::UserUpdate
+    event client, on_voice_server_update, Opcode::VoiceServerUpdate
+    event client, on_voice_state_update, Opcode::VoiceStateUpdate
 
     @client = client
   end
