@@ -12,10 +12,6 @@ shards:
     github: gdotdesign/cr-dotenv
     version: 0.1.0
 
-  msgpack:
-    github: crystal-community/msgpack-crystal
-    version: 0.7.1
-
   redis:
     github: stefanwille/crystal-redis
     version: 1.9.0
