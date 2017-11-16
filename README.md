@@ -1,3 +1,5 @@
+[![ci-badge][]][ci]
+
 # yuki-sharder
 
 Sharder is a bridge between the Discord gateway and our choice of message
@@ -16,3 +18,6 @@ Self-hosting is not supported.
 ### License
 
 All rights reserved.
+
+[ci]: https://travis-ci.org/yuki-bot/sharder
+[ci-badge]: https://travis-ci.org/yuki-bot/sharder.svg?branch=master
