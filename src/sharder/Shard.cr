@@ -43,26 +43,16 @@ macro event(client, method, opcode)
 end
 
 class Shard
-  @amqp : AMQP::Connection
-  @channel : AMQP::Channel
+  @@amqp : AMQP::Connection = initialize_amqp
+  @@channel : AMQP::Channel = @@amqp.channel
+  @@exchange : AMQP::Exchange = @@channel.default_exchange
+  @@redis : Redis = initialize_redis
+
   @client : Discord::Client
-  @exchange : AMQP::Exchange
-  @redis : Redis
   @shard_id : Int32
 
   def initialize(token, client_id, shard_id, shard_total)
-    @amqp = initialize_amqp
-    @channel = @amqp.channel
-    @exchange = @channel.default_exchange
     @shard_id = shard_id
-
-    @amqp.on_close do |code, msg|
-      puts "amqp closed: #{code}: #{msg}"
-
-      @amqp = initialize_amqp
-    end
-
-    @redis = initialize_redis
 
     client = Discord::Client.new token: token, client_id: client_id, shard: {
       shard_id: shard_id.as(Int32),
@@ -113,7 +103,7 @@ class Shard
   end
 
   def counter(opcode)
-    @redis.incr "event_counter:all:#{opcode.value}"
+    @@redis.incr "event_counter:all:#{opcode.value}"
   end
 
   def dispatch(payload, opcode)
@@ -133,7 +123,7 @@ class Shard
     json = "{\"d\":#{payload.to_json}},\"meta\":{\"op\":#{opcode.value},\"shard_id\":#{@shard_id}}"
     msg = AMQP::Message.new json
 
-    @exchange.publish msg, ENV["AMQP_EXCHANGE"]
+    @@exchange.publish msg, ENV["AMQP_EXCHANGE"]
   end
 
   def run

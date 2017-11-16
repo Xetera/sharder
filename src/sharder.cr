@@ -1,12 +1,13 @@
+require "dotenv"
+
+Dotenv.load!
+
 require "amqp"
 require "discordcr"
-require "dotenv"
 require "json"
 require "http"
 require "redis"
 require "./sharder/Shard"
-
-Dotenv.load!
 
 client_id = ENV["DISCORD_CLIENT_ID"].to_u64
 

@@ -4,5 +4,13 @@ def initialize_amqp
   user = ENV["AMQP_USER"]
   pass = ENV["AMQP_PASS"]
 
-  AMQP::Connection.new AMQP::Config.new host, port, user, pass
+  conn = AMQP::Connection.new AMQP::Config.new host, port, user, pass
+
+  conn.on_close do |code, msg|
+    puts "amqp closed: #{code}: #{msg}"
+
+    conn = initialize_amqp
+  end
+
+  conn
 end
