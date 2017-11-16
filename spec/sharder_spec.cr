@@ -1,6 +1,6 @@
 require "./spec_helper"
 
-describe Sharder do
+describe Shard do
   it "works" do
     false.should eq(true)
   end
