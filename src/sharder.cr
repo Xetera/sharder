@@ -1,6 +1,12 @@
 require "dotenv"
 
-Dotenv.load!
+begin
+  Dotenv.load!
+rescue
+  puts "No .env file found"
+
+  sleep
+end
 
 require "amqp"
 require "discordcr"
