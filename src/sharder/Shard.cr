@@ -120,7 +120,7 @@ class Shard
     #     "shard_id": 0 # ex.
     #   }
     # }
-    json = "{\"d\":#{payload.to_json}},\"meta\":{\"op\":#{opcode.value},\"shard_id\":#{@shard_id}}}"
+    json = "{\"d\":#{payload.to_json},\"meta\":{\"op\":#{opcode.value},\"shard_id\":#{@shard_id}}}"
     msg = AMQP::Message.new json
 
     @@exchange.publish msg, ENV["AMQP_EXCHANGE"]
