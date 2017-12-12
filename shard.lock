@@ -1,8 +1,8 @@
 version: 1.0
 shards:
   amqp:
-    github: datanoise/amqp.cr
-    commit: a164f7054435bcdd22c5731e524ce4755695716f
+    github: yuki-bot/amqp.cr
+    commit: 0cd4f5afcd72fe2be2c8ca4f9c91f43135b4bd77
 
   discordcr:
     github: meew0/discordcr

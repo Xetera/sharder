@@ -7,7 +7,7 @@ authors:
 
 dependencies:
   amqp:
-    github: datanoise/amqp.cr
+    github: yuki-bot/amqp.cr
   discordcr:
     github: meew0/discordcr
   dotenv:
