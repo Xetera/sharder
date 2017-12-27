@@ -9,7 +9,7 @@ dependencies:
   amqp:
     github: yuki-bot/amqp.cr
   discordcr:
-    github: meew0/discordcr
+    github: yuki-bot/discordcr
   dotenv:
     github: gdotdesign/cr-dotenv
   redis:

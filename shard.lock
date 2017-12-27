@@ -5,7 +5,7 @@ shards:
     commit: 0cd4f5afcd72fe2be2c8ca4f9c91f43135b4bd77
 
   discordcr:
-    github: meew0/discordcr
+    github: yuki-bot/discordcr
     version: 0.3.0
 
   dotenv:
