@@ -1,4 +1,3 @@
-require "amqp"
 require "discordcr/*"
 require "discordcr"
 require "json"
@@ -43,9 +42,6 @@ macro event(client, method, opcode)
 end
 
 class Shard
-  @@amqp : AMQP::Connection = initialize_amqp
-  @@channel : AMQP::Channel = @@amqp.channel
-  @@exchange : AMQP::Exchange = @@channel.default_exchange
   @@redis : Redis = initialize_redis
 
   @client : Discord::Client
@@ -121,9 +117,8 @@ class Shard
     #   }
     # }
     json = "{\"d\":#{payload.to_json},\"meta\":{\"op\":#{opcode.value},\"shard_id\":#{@shard_id}}}"
-    msg = AMQP::Message.new json
 
-    @@exchange.publish msg, ENV["AMQP_EXCHANGE"]
+    @@redis.lpush "exchange:gateway_events", json
   end
 
   def run

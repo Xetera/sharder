@@ -2,7 +2,6 @@ require "dotenv"
 
 Dotenv.load!
 
-require "amqp"
 require "discordcr"
 require "json"
 require "http"

@@ -6,8 +6,6 @@ authors:
   - Zeyla Hellyer <zey@zey.moe>
 
 dependencies:
-  amqp:
-    github: yuki-bot/amqp.cr
   discordcr:
     github: yuki-bot/discordcr
   dotenv:
