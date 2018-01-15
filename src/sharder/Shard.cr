@@ -45,6 +45,7 @@ class Shard
   @@redis : Redis = initialize_redis
 
   @client : Discord::Client
+  @sub : Redis
   @shard_id : Int32
 
   def initialize(token, client_id, shard_id, shard_total)
@@ -96,6 +97,15 @@ class Shard
     event client, on_voice_state_update, Opcode::VoiceStateUpdate
 
     @client = client
+    @sub = initialize_redis
+
+    spawn do
+      @sub.subscribe("exchange:sharder:#{@shard_id}") do |on|
+        on.message do |channel, message|
+          @client.send_json(message)
+        end
+      end
+    end
   end
 
   def counter(opcode)
@@ -118,7 +128,7 @@ class Shard
     # }
     json = "{\"d\":#{payload.to_json},\"meta\":{\"op\":#{opcode.value},\"shard_id\":#{@shard_id}}}"
 
-    @@redis.lpush "exchange:gateway_events", json
+    @@redis.rpush "exchange:gateway_events", json
   end
 
   def run
