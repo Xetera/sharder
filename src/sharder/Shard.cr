@@ -109,13 +109,7 @@ class Shard
     end
   end
 
-  def counter(opcode)
-    @redis.incr "event_counter:all:#{opcode.value}"
-  end
-
   def dispatch(payload, opcode)
-    counter opcode
-
     # nice.
     #
     # Result:
