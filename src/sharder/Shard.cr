@@ -42,7 +42,7 @@ macro event(client, method, opcode)
 end
 
 class Shard
-  @@redis : Redis = initialize_redis
+  @redis : Redis
 
   @client : Discord::Client
   @sub : Redis
@@ -50,6 +50,7 @@ class Shard
 
   def initialize(token, client_id, shard_id, shard_total)
     @shard_id = shard_id
+    @redis = initialize_redis
 
     client = Discord::Client.new token: token, client_id: client_id, shard: {
       shard_id: shard_id.as(Int32),
@@ -109,7 +110,7 @@ class Shard
   end
 
   def counter(opcode)
-    @@redis.incr "event_counter:all:#{opcode.value}"
+    @redis.incr "event_counter:all:#{opcode.value}"
   end
 
   def dispatch(payload, opcode)
@@ -128,7 +129,7 @@ class Shard
     # }
     json = "{\"d\":#{payload.to_json},\"meta\":{\"op\":#{opcode.value},\"shard_id\":#{@shard_id}}}"
 
-    @@redis.rpush "exchange:gateway_events", json
+    @redis.rpush "exchange:gateway_events", json
   end
 
   def run
