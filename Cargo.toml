@@ -1,0 +1,17 @@
+[package]
+name = "yuki-sharder"
+version = "0.1.0"
+authors = ["Zeyla Hellyer <zey@zey.moe>"]
+
+[dependencies]
+env_logger = "~0.5"
+futures-await = "~0.1"
+kankyo = "~0.1"
+log = "~0.3"
+redis-async = { git = "https://github.com/zeyla/redis-async-rs", branch = "integer-fix" }
+tokio-core = "~0.1"
+tungstenite = "~0.5"
+
+[dependencies.serenity]
+branch = "v0.6.x"
+git = "https://github.com/zeyla/serenity"

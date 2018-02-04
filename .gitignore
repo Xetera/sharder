@@ -3,3 +3,5 @@ bin/
 doc/
 lib/
 .env
+/target/
+**/*.rs.bk
