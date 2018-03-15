@@ -1,7 +1,4 @@
-.shards/
-bin/
-doc/
-lib/
-.env
-/target/
+target/
 **/*.rs.bk
+Cargo.toml
+.env
