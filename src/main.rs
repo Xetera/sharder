@@ -33,8 +33,16 @@ fn main_async() -> Result<(), Box<Error + 'static>>
     let token = Rc::new(env::var("DISCORD_TOKEN")
         .expect("Expected a token in the environment"));
 
+    let password = std::env::var("AMQP_PASS")?;
+    let username = std::env::var("AMQP_USER")?;
+
+    let exchange = std::env::var("AMQP_EXCHANGE")?;
+    let queue = std::env::var("AMQP_QUEUE")?;
+
     let stream = await!(TcpStream::connect(&addr))?;
     let client = await!(lapin::client::Client::connect(stream, ConnectionOptions {
+        password: password,
+        username: username,
         frame_max: 65535,
         ..Default::default()
     }))?;
@@ -45,11 +53,11 @@ fn main_async() -> Result<(), Box<Error + 'static>>
     let id = channel.id;
     println!("created channel with id: {}", id);
 
-    await!(channel.queue_declare("queue", QueueDeclareOptions::default(), FieldTable::new()))?;
+    await!(channel.queue_declare(&queue, QueueDeclareOptions::default(), FieldTable::new()))?;
     println!("channel {} declared queue {}", id, "queue");
 
-    await!(channel.exchange_declare("exchange", "direct", ExchangeDeclareOptions::default(), FieldTable::new()))?;
-    await!(channel.queue_bind("queue", "exchange", "queue2", QueueBindOptions::default(), FieldTable::new()))?;
+    await!(channel.exchange_declare(&exchange, "direct", ExchangeDeclareOptions::default(), FieldTable::new()))?;
+    await!(channel.queue_bind(&queue, &exchange, "*", QueueBindOptions::default(), FieldTable::new()))?;
 
     loop 
     {
@@ -74,11 +82,11 @@ fn main_async() -> Result<(), Box<Error + 'static>>
 
                 await!(     
                     channel.basic_publish(
-                        "exchange",
-                        "queue",
+                        &exchange,
+                        &queue,
                         &bytes,
                         BasicPublishOptions::default(),
-                        BasicProperties::default().with_user_id("guest".to_string()).with_reply_to("foobar".to_string())
+                        BasicProperties::default()
                     )
                 )?;
             
