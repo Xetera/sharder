@@ -21,6 +21,7 @@ use std::rc::Rc;
 use tungstenite::Message as TungsteniteMessage;
 
 fn main() {
+    kankyo::load();
   env_logger::init();
   current_thread::block_on_all(main_async()).expect("runtime exited with failure")
 }
