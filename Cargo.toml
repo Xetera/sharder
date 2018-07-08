@@ -1,17 +1,13 @@
 [package]
-name = "yuki-sharder"
+name = "01_basic_ping_bot"
 version = "0.1.0"
-authors = ["Zeyla Hellyer <zey@zey.moe>"]
+authors = ["my name <my@email.address>"]
 
 [dependencies]
-env_logger = "~0.5"
-futures-await = "~0.1"
 kankyo = "~0.1"
-log = "~0.3"
-redis-async = { git = "https://github.com/zeyla/redis-async-rs", branch = "integer-fix" }
-tokio-core = "~0.1"
+futures-await = "~0.1"
+tokio = "~0.1"
+serenity = { git = "https://github.com/serenity-rs/serenity", branch="v0.6.x" }
+lapin-futures = "~0.12"
 tungstenite = "~0.5"
-
-[dependencies.serenity]
-branch = "v0.6.x"
-git = "https://github.com/zeyla/serenity"
+env_logger = "*"

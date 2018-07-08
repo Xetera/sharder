@@ -1,124 +1,97 @@
-#![feature(proc_macro, conservative_impl_trait, generators)]
-#![feature(alloc_system)]
-#![feature(global_allocator, allocator_api)]
+#![feature(catch_expr, proc_macro, generators)]
 
-extern crate alloc_system;
-
-use alloc_system::System;
-
-#[global_allocator]
-static A: System = System;
-
-#[macro_use] extern crate log;
-#[macro_use] extern crate redis_async as redis;
-
-extern crate env_logger;
-extern crate futures_await as futures;
 extern crate kankyo;
+extern crate lapin_futures as lapin;
+extern crate futures_await as futures;
+extern crate tokio;
+extern crate env_logger;
 extern crate serenity;
-extern crate tokio_core;
 extern crate tungstenite;
 
-use futures::prelude::*;
-use redis::client::paired_connect;
-use redis::resp::{FromResp, RespValue};
-use serenity::gateway::Shard;
-use std::cell::RefCell;
+use futures::prelude::{async, await};
+use tokio::net::TcpStream;
+use lapin::types::FieldTable;
+use lapin::client::ConnectionOptions;
+use lapin::channel::{BasicPublishOptions,BasicProperties,ConfirmSelectOptions,ExchangeDeclareOptions,QueueBindOptions,QueueDeclareOptions};
 use std::error::Error;
-use std::rc::Rc;
+use tokio::executor::current_thread;
+use serenity::gateway::Shard;
 use std::env;
-use tokio_core::reactor::{Core, Handle};
+use std::rc::Rc;
 use tungstenite::Message as TungsteniteMessage;
 
 fn main() {
-    kankyo::load().expect("Error loading kankyo");
-    env_logger::init();
-
-    let mut core = Core::new().expect("Error creating event loop");
-    let future = try_main(core.handle());
-
-    core.run(future).expect("Error running event loop");
+  env_logger::init();
+  current_thread::block_on_all(main_async()).expect("runtime exited with failure")
 }
 
 #[async]
-fn try_main(handle: Handle) -> Result<(), Box<Error + 'static>> {
-    // Configure the client with your Discord bot token in the environment.
-    let token = env::var("DISCORD_TOKEN")?;
-    let redis_addr = env::var("REDIS_ADDR")?.parse()?;
+fn main_async() -> Result<(), Box<Error + 'static>>
+{
+    let addr = std::env::var("AMQP_ADDR").unwrap_or_else(|_| "127.0.0.1:5672".to_string()).parse().unwrap();
+    let token = Rc::new(env::var("DISCORD_TOKEN")
+        .expect("Expected a token in the environment"));
 
-    let redis = await!(paired_connect(&redis_addr, &handle))?;
+    let stream = await!(TcpStream::connect(&addr))?;
+    let client = await!(lapin::client::Client::connect(stream, ConnectionOptions {
+        frame_max: 65535,
+        ..Default::default()
+    }))?;
 
-    // Create a new shard, specifying the token, the ID of the shard (0 of 1),
-    // and a handle to the event loop
-    let mut shard = Rc::new(RefCell::new(await!(Shard::new(token, [0, 1], handle.clone()))?));
-    let shard_id = 0;
+   // tokio::spawn(client.1.map_err(|e| println!("{:?}", e)));
 
-    let h2 = handle.clone();
+    let channel = await!(client.0.create_confirm_channel(ConfirmSelectOptions::default()))?;
+    let id = channel.id;
+    println!("created channel with id: {}", id);
 
-    handle.spawn(background(h2, Rc::clone(&shard), shard_id));
+    await!(channel.queue_declare("queue", QueueDeclareOptions::default(), FieldTable::new()))?;
+    println!("channel {} declared queue {}", id, "queue");
 
-    let messages = shard.borrow_mut().messages();
+    await!(channel.exchange_declare("exchange", "direct", ExchangeDeclareOptions::default(), FieldTable::new()))?;
+    await!(channel.queue_bind("queue", "exchange", "queue2", QueueBindOptions::default(), FieldTable::new()))?;
 
-    // Loop over websocket messages.
-    #[async]
-    for message in messages {
-        let mut bytes = match message {
-            TungsteniteMessage::Binary(v) => v,
-            TungsteniteMessage::Text(v) => v.into_bytes(),
-            _ => continue,
+    loop 
+    {
+        let mut shard = await!(Shard::new(Rc::clone(&token), [0, 1]))?;
+
+        // Loop over websocket messages.
+        let result: Result<_, Box<Error>> = do catch 
+        {
+            #[async]
+            for message in shard.messages() {
+                
+                let msg = message.clone();
+
+                let mut bytes = match message {
+                    TungsteniteMessage::Binary(v) => v,
+                    TungsteniteMessage::Text(v) => v.into_bytes(),
+                    _ => continue,
+                };
+
+                let event = shard.parse(msg).unwrap();
+                shard.process(&event);
+
+                await!(     
+                    channel.basic_publish(
+                        "exchange",
+                        "queue",
+                        &bytes,
+                        BasicPublishOptions::default(),
+                        BasicProperties::default().with_user_id("guest".to_string()).with_reply_to("foobar".to_string())
+                    )
+                )?;
+            
+                println!("message processed!");
+            }
+            
+            ()
         };
 
-        bytes.push(shard_id);
-
-        let cmd = resp_array!["RPUSH", "exchange:gateway_events", bytes];
-        let done = redis.send(cmd)
-            .map(|_: RespValue| ())
-            .map_err(|why| {
-                warn!("Err sending to redis: {:?}", why);
-            });
-
-        handle.spawn(done);
-    }
-
-    Ok(())
-}
-
-#[async]
-fn background(handle: Handle, shard: Rc<RefCell<Shard>>, shard_id: u8)
-    -> Result<(), ()> {
-    let key = format!("exchange:sharder:{}", shard_id);
-    let addr = env::var("REDIS_ADDR").unwrap().parse().unwrap();
-    let redis = await!(paired_connect(&addr, &handle)).unwrap();
-
-    loop {
-        let mut parts: Vec<RespValue> = match await!(redis.send(resp_array!["BLPOP", &key, 0])) {
-            Ok(parts) => parts,
-            Err(why) => {
-                warn!("Err sending blpop cmd: {:?}", why);
-
-                continue;
-            },
-        };
-        let part = if parts.len() == 2 {
-            parts.remove(1)
-        } else {
-            warn!("blpop result part count != 2: {:?}", parts);
+        if let Err(why) = result {
+            println!("Error with loop occurred: {:?}", why);
+            println!("Creating new shard");
 
             continue;
-        };
-
-        let mut message: Vec<u8> = match FromResp::from_resp(part) {
-            Ok(message) => message,
-            Err(why) => {
-                warn!("Err parsing part to bytes: {:?}", why);
-
-                continue;
-            },
-        };
-
-        let mut shard = shard.borrow_mut();
-        let event = shard.parse(TungsteniteMessage::Binary(message)).unwrap();
-
-        shard.process(&event);
+        }
     }
 }
