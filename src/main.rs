@@ -39,6 +39,9 @@ fn main_async() -> Result<(), Box<Error + 'static>>
     let exchange = std::env::var("AMQP_EXCHANGE")?;
     let queue = std::env::var("AMQP_QUEUE")?;
 
+    let shardcount = std::env::var("DISCORD_SHARD_COUNT")?.parse::<u64>().ok().expect("rip");
+    let shardindex = std::env::var("DISCORD_SHARD_INDEX")?.parse::<u64>().ok().expect("rip");
+
     let stream = await!(TcpStream::connect(&addr))?;
     let client = await!(lapin::client::Client::connect(stream, ConnectionOptions {
         password: password,
@@ -61,7 +64,7 @@ fn main_async() -> Result<(), Box<Error + 'static>>
 
     loop 
     {
-        let mut shard = await!(Shard::new(Rc::clone(&token), [0, 1]))?;
+        let mut shard = await!(Shard::new(Rc::clone(&token), [shardindex, shardcount]))?;
 
         // Loop over websocket messages.
         let result: Result<_, Box<Error>> = do catch 
