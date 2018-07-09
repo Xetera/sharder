@@ -1,5 +1,5 @@
 [package]
-name = "01_basic_ping_bot"
+name = "miki-gateway"
 version = "0.1.0"
 authors = ["my name <my@email.address>"]
 
@@ -10,4 +10,5 @@ tokio = "~0.1"
 serenity = { git = "https://github.com/serenity-rs/serenity", branch="v0.6.x" }
 lapin-futures = "~0.12"
 tungstenite = "~0.5"
+serde_json = "^1.0"
 env_logger = "*"

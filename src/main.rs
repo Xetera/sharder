@@ -1,24 +1,68 @@
 #![feature(catch_expr, proc_macro, generators)]
 
+extern crate env_logger;
+extern crate futures_await as futures;
 extern crate kankyo;
 extern crate lapin_futures as lapin;
-extern crate futures_await as futures;
-extern crate tokio;
-extern crate env_logger;
+extern crate serde_json;
 extern crate serenity;
+extern crate tokio;
 extern crate tungstenite;
 
 use futures::prelude::{async, await};
-use tokio::net::TcpStream;
 use lapin::types::FieldTable;
 use lapin::client::ConnectionOptions;
 use lapin::channel::{BasicPublishOptions,BasicProperties,ConfirmSelectOptions,ExchangeDeclareOptions,QueueBindOptions,QueueDeclareOptions};
-use std::error::Error;
-use tokio::executor::current_thread;
+use serde_json::Error as JsonError;
 use serenity::gateway::Shard;
+use serenity::Error as SerenityError;
 use std::env;
+use std::env::VarError;
+use std::io::Error as IOError;
 use std::rc::Rc;
+use tokio::executor::current_thread;
+use tokio::net::TcpStream;
+use tungstenite::Error as TungsteniteError;
 use tungstenite::Message as TungsteniteMessage;
+
+#[derive(Debug)]
+enum Error {
+    Json(JsonError),
+    Serenity(SerenityError),
+    Tungstenite(TungsteniteError),
+    IO(IOError),
+    Var(VarError),
+}
+
+impl From<JsonError> for Error {
+    fn from(err: JsonError) -> Self {
+        Error::Json(err)
+    }
+}
+
+impl From<SerenityError> for Error {
+    fn from(err: SerenityError) -> Self {
+        Error::Serenity(err)
+    }
+}
+
+impl From<TungsteniteError> for Error {
+    fn from(err: TungsteniteError) -> Self {
+        Error::Tungstenite(err)
+    }
+}
+
+impl From<IOError> for Error {
+    fn from(err: IOError) -> Self {
+        Error::IO(err)
+    }
+}
+
+impl From<VarError> for Error {
+    fn from(err: VarError) -> Self {
+        Error::Var(err)
+    }
+}
 
 fn main() {
     kankyo::load().expect("Error loading kankyo");
@@ -27,7 +71,7 @@ fn main() {
 }
 
 #[async]
-fn main_async() -> Result<(), Box<Error + 'static>>
+fn main_async() -> Result<(), Error>
 {
     let addr = std::env::var("AMQP_ADDR").unwrap_or_else(|_| "127.0.0.1:5672".to_string()).parse().unwrap();
     let token = Rc::new(env::var("DISCORD_TOKEN")
@@ -50,8 +94,6 @@ fn main_async() -> Result<(), Box<Error + 'static>>
         ..Default::default()
     }))?;
 
-   // tokio::spawn(client.1.map_err(|e| println!("{:?}", e)));
-
     let channel = await!(client.0.create_confirm_channel(ConfirmSelectOptions::default()))?;
     let id = channel.id;
     println!("created channel with id: {}", id);
@@ -62,19 +104,20 @@ fn main_async() -> Result<(), Box<Error + 'static>>
     await!(channel.exchange_declare(&exchange, "direct", ExchangeDeclareOptions::default(), FieldTable::new()))?;
     await!(channel.queue_bind(&queue, &exchange, "*", QueueBindOptions::default(), FieldTable::new()))?;
 
+    let mut shard = await!(Shard::new(Rc::clone(&token), [shardindex, shardcount]))?;
+
     loop 
     {
-        let mut shard = await!(Shard::new(Rc::clone(&token), [shardindex, shardcount]))?;
-
-        // Loop over websocket messages.
-        let result: Result<_, Box<Error>> = do catch 
+        let result: Result<_, Error> = do catch 
         {
             #[async]
-            for message in shard.messages() {
+            for message in shard.messages() 
+            {
                 
                 let msg = message.clone();
 
-                let mut bytes = match message {
+                let mut bytes = match message 
+                {
                     TungsteniteMessage::Binary(v) => v,
                     TungsteniteMessage::Text(v) => v.into_bytes(),
                     _ => continue,
@@ -99,11 +142,33 @@ fn main_async() -> Result<(), Box<Error + 'static>>
             ()
         };
 
-        if let Err(why) = result {
+        if let Err(why) = result 
+        {
             println!("Error with loop occurred: {:?}", why);
-            println!("Creating new shard");
 
-            continue;
+            match why 
+            {
+                Error::Tungstenite(TungsteniteError::ConnectionClosed(Some(close))) => 
+                {
+                    println!(
+                        "Close: code: {}; reason: {}",
+                        close.code,
+                        close.reason,
+                    );
+                },
+                other => 
+                {
+                    println!("Shard error: {:?}", other);
+
+                    continue;
+                },
+            }
+
+            println!("trying to autoreconnect...");
+
+            await!(shard.autoreconnect()?);
+
+            println!("hello");
         }
     }
 }
