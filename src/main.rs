@@ -9,18 +9,22 @@ extern crate serenity;
 extern crate tokio;
 extern crate tungstenite;
 
+use futures::Future;
 use futures::prelude::{async, await};
 use lapin::types::FieldTable;
 use lapin::client::ConnectionOptions;
 use lapin::channel::{BasicPublishOptions,BasicProperties,ConfirmSelectOptions,ExchangeDeclareOptions,QueueBindOptions,QueueDeclareOptions};
 use serde_json::Error as JsonError;
-use serenity::gateway::Shard;
 use serenity::Error as SerenityError;
+use serenity::gateway::Shard;
+use serenity::model::event::Event;
+use serenity::model::event::GatewayEvent;
 use std::env;
 use std::env::VarError;
 use std::io::Error as IOError;
 use std::rc::Rc;
 use tokio::executor::current_thread;
+
 use tokio::net::TcpStream;
 use tungstenite::Error as TungsteniteError;
 use tungstenite::Message as TungsteniteMessage;
@@ -87,14 +91,16 @@ fn main_async() -> Result<(), Error>
     let shardindex = std::env::var("DISCORD_SHARD_INDEX")?.parse::<u64>().ok().expect("rip");
 
     let stream = await!(TcpStream::connect(&addr))?;
-    let client = await!(lapin::client::Client::connect(stream, ConnectionOptions {
-        password: password,
+    let (client, heartbeat) = await!(lapin::client::Client::connect(stream, ConnectionOptions {
         username: username,
+        password: password,
         frame_max: 65535,
         ..Default::default()
     }))?;
 
-    let channel = await!(client.0.create_confirm_channel(ConfirmSelectOptions::default()))?;
+     current_thread::spawn(heartbeat.map_err(|e| eprintln!("{:?}", e)));
+
+    let channel = await!(client.create_confirm_channel(ConfirmSelectOptions::default()))?;
     let id = channel.id;
     println!("created channel with id: {}", id);
 
@@ -103,7 +109,6 @@ fn main_async() -> Result<(), Error>
 
     await!(channel.exchange_declare(&exchange, "direct", ExchangeDeclareOptions::default(), FieldTable::new()))?;
     await!(channel.queue_bind(&queue, &exchange, "*", QueueBindOptions::default(), FieldTable::new()))?;
-
     let mut shard = await!(Shard::new(Rc::clone(&token), [shardindex, shardcount]))?;
 
     loop 
@@ -112,8 +117,7 @@ fn main_async() -> Result<(), Error>
         {
             #[async]
             for message in shard.messages() 
-            {
-                
+            {      
                 let msg = message.clone();
 
                 let mut bytes = match message 
@@ -124,17 +128,29 @@ fn main_async() -> Result<(), Error>
                 };
 
                 let event = shard.parse(msg).unwrap();
-                shard.process(&event);
+                
+                let ev_type = match event.clone() {
+                    GatewayEvent::Dispatch(_, t) => Some(t),
+                    _ => None,
+                };
 
-                await!(     
-                    channel.basic_publish(
-                        &exchange,
-                        &queue,
-                        &bytes,
-                        BasicPublishOptions::default(),
-                        BasicProperties::default()
-                    )
-                )?;
+                if let Some(future) = shard.process(&event) {
+                    await!(future)?;
+                }
+
+                if ev_type.is_none()
+                {
+                    println!("ignored event");
+                    continue;
+                }
+                
+                await!(channel.basic_publish(
+                    &exchange,
+                    &queue,
+                    bytes.clone(),
+                    BasicPublishOptions::default(),
+                    BasicProperties::default().with_user_id("guest".to_string()).with_reply_to("foobar".to_string())
+                ));
             
                 println!("message processed!");
             }
@@ -164,11 +180,7 @@ fn main_async() -> Result<(), Error>
                 },
             }
 
-            println!("trying to autoreconnect...");
-
-            await!(shard.autoreconnect()?);
-
-            println!("hello");
+            await!(shard.autoreconnect())?;
         }
     }
 }
