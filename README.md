@@ -1,5 +1,0 @@
-# sharder
-
-### License
-
-MIT.
