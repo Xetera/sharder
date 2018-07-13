@@ -5,8 +5,8 @@ const statsd     = require("hot-shots");
 const datadog    = new statsd();
 
 const client = new Discord.Client({
-    shardCount: config.shardCount,
-    shardId: config.shardId
+    shardCount: parseInt(process.env.SHARDCOUNT),
+    shardId: parseInt(process.env.SHARD)
 });
 
 var conn = null;
@@ -18,11 +18,16 @@ client.on('raw', async (p) =>
     {
         return;
     }
-    
-    console.log(`[SENT] => ${p.t}`)
-    await channel.sendToQueue("gateway", Buffer.from(JSON.stringify(p)));
 
     datadog.increment('webhooks.received', 1, 1, { "webhook-id": p.t, "shard-id": p.s });
+
+    if(config.ignorePackets.includes(p.t))
+    {
+        return;
+    }
+    
+    console.log(`[SENT] => ${p.t}`)
+    await channel.sendToQueue("gateway", Buffer.from(JSON.stringify(p)));   
     return;
 });
 

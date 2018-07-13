@@ -1,0 +1,5 @@
+module.exports = {
+    shardIndex: 0, 
+    shardInit: 1,
+    shardCount: 1
+};
