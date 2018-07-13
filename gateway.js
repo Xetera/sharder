@@ -34,7 +34,6 @@ client.on('raw', async (p) =>
 async function main()
 {   
     conn = getConnection();
-    init();
 }
 
 async function initConnection()
