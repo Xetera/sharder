@@ -1,8 +1,12 @@
 module.exports = {
-    token: "token-here",
+    ignorePackets: [
+        "PRESENCE_UPDATE",
+        "TYPING_START"
+    ],
     rabbitUrl: "amqp://127.0.0.1",
     rabbitExchange: "gateway",
-    ignorePackets: [
-        "PRESENCE_UPDATE"
-    ]
+    shardIndex: 0, 
+    shardInit: 1,
+    shardCount: 1,
+    token: "token-here",
 };

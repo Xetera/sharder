@@ -1,33 +1,37 @@
-const Discord    = require('discord.js');
+const { Client } = require('@spectacles/gateway');
 const rabbitmq   = require('amqplib');
 const config     = require("./config");
 const statsd     = require("hot-shots");
 const datadog    = new statsd();
 
-const client = new Discord.Client({
-    shardCount: parseInt(process.env.SHARDCOUNT),
-    shardId: parseInt(process.env.SHARD)
+const client = new Client(config.token, {
+    reconnect: true,
 });
+
+client.gateway = {
+    url: "wss://gateway.discord.gg/",
+    shards: config.shardCount,
+};
 
 var conn = null;
 var channel = null;
 
-client.on('raw', async (p) => 
+client.on('receive', async (shard, packet) => 
 {
-    if(p.op != 0)
+    if(packet.op != 0)
     {
         return;
     }
 
-    datadog.increment('webhooks.received', 1, 1, { "webhook-id": p.t, "shard-id": p.s });
+    datadog.increment('gateway.packets.received', 1, 1, { "webhook-id": packet.t, "shard-id": packet.s });
 
-    if(config.ignorePackets.includes(p.t))
+    if(config.ignorePackets.includes(packet.t))
     {
         return;
     }
     
-    console.log(`[SENT] => ${p.t}`)
-    await channel.sendToQueue("gateway", Buffer.from(JSON.stringify(p)));   
+    console.log(`[SH#${shard}] => ${packet.t}`)
+    await channel.sendToQueue("gateway", Buffer.from(JSON.stringify(packet)));   
     return;
 });
 
@@ -89,5 +93,11 @@ async function getConnection()
     return conn;
 }
 
+var shardsToInit = [];
+for(var i = config.shardIndex; i < config.shardIndex + config.shardInit; i++)
+{
+    shardsToInit.push(i);
+}
+
 main();
-client.login(config.token);
+client.spawn(shardsToInit);
