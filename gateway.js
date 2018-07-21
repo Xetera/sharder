@@ -1,8 +1,6 @@
 const { Client } = require('@spectacles/gateway');
 const rabbitmq   = require('amqplib');
 const config     = require("./config");
-const statsd     = require("hot-shots");
-const datadog    = new statsd();
 
 const client = new Client(config.token, {
     reconnect: true,
@@ -22,8 +20,6 @@ client.on('receive', async (shard, packet) =>
     {
         return;
     }
-
-    datadog.increment('gateway.packets.received', 1, 1, { "webhook-id": packet.t, "shard-id": packet.s });
 
     if(config.ignorePackets.includes(packet.t))
     {
@@ -50,7 +46,6 @@ async function initConnection()
 
         newConn.on('error', async (err) => {
             console.log("[CRIT] CN " + err);
-            datadog.check('gateway.status.amqp', datadog.CHECKS.CRITICAL);
             conn = getConnection();
         });
 
@@ -89,7 +84,6 @@ async function getConnection()
     }
 
     console.log("[ OK ] >> (re)connected")
-    datadog.check('gateway.status.amqp', datadog.CHECKS.OK);
     return conn;
 }
 
