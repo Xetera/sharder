@@ -18,5 +18,10 @@
     "@spectacles/gateway": "^0.10.0",
     "amqplib": "^0.5.2",
     "redis": "^2.8.0"
+  },
+  "devDependencies": {
+    "@types/amqplib": "^0.5.8",
+    "@types/node": "^10.9.2",
+    "@types/redis": "^2.8.6"
   }
 }
