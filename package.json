@@ -16,6 +16,7 @@
   "homepage": "https://github.com/Mikibot/sharder",
   "dependencies": {
     "@spectacles/gateway": "^0.10.0",
-    "amqplib": "^0.5.2"
+    "amqplib": "^0.5.2",
+    "redis": "^2.8.0"
   }
 }

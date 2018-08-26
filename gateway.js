@@ -1,6 +1,9 @@
 const { Client } = require('@spectacles/gateway');
 const rabbitmq   = require('amqplib');
 const config     = require("./config");
+const util       = require('util');
+
+const debug = true;
 
 const client = new Client(config.token, {
     reconnect: true,
@@ -12,7 +15,10 @@ client.gateway = {
 };
 
 var conn = null;
-var channel = null;
+
+var gatewayChannel = null;
+
+var commandChannel = null;
 
 client.on('receive', async (shard, packet) => 
 {
@@ -21,19 +27,34 @@ client.on('receive', async (shard, packet) =>
         return;
     }
 
+    if(packet.t == "PRESENCE_UPDATE")
+    {
+        if(Object.keys(packet.d.user).length > 1)
+        {
+            packet.t = "USER_UPDATE";
+            packet.d = packet.d.user;
+        }
+    }
+
     if(config.ignorePackets.includes(packet.t))
     {
         return;
     }
-    
-    console.log(`[SH#${shard}] => ${packet.t}`)
-    await channel.sendToQueue("gateway", Buffer.from(JSON.stringify(packet)));   
+
+    if(debug)
+    {
+        console.log(`[${packet.t}]`)
+    }
+
+    await gatewayChannel.sendToQueue(config.rabbitChannel, Buffer.from(JSON.stringify(packet)));   
     return;
 });
 
 async function main()
 {   
-    conn = getConnection();
+    conn = await getConnection();
+
+    gatewayChannel = await createPushChannel(config.rabbitChannel);
 }
 
 async function initConnection()
@@ -50,14 +71,25 @@ async function initConnection()
         });
 
         conn = newConn;
-        channel = await conn.createChannel();
-     
-        channel.on('error', function(err) {
-            console.log("[CRIT] CH " + err);
-        });
 
-        assert = await channel.assertQueue("gateway", {durable: true});
+        commandChannel = await conn.createChannel();
+        await commandChannel.assertExchange(config.rabbitExchange + "-command", 'fanout', {durable: true});
 
+        await commandChannel.assertQueue("gateway-command")
+        await commandChannel.consume("gateway-command", async (msg) => {
+
+            console.log("message receieved");
+
+            let packet = JSON.parse(msg.content.toString());
+
+            console.log(JSON.stringify(packet));
+
+            if(client.connections.has(packet.shard_id))
+            {
+                let shard = client.connections.get(packet.shard_id);
+                await shard.send(packet.opcode, packet.data);   
+            }
+        }, {noAck: true});
         return newConn;
     }
     catch(err)
@@ -65,6 +97,19 @@ async function initConnection()
         console.log("[WARN] >> " + err);
         return null;
     }
+}
+
+async function createPushChannel(channelName)
+{
+    var channel = await conn.createChannel();
+     
+    channel.on('error', function(err) {
+        console.log("[CRIT] CH " + err);
+    });
+
+    assert = await channel.assertQueue(channelName, {durable: true});
+
+    return channel;
 }
 
 async function getConnection()

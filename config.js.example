@@ -5,6 +5,7 @@ module.exports = {
     ],
     rabbitUrl: "amqp://127.0.0.1",
     rabbitExchange: "gateway",
+    rabbitChannel: "stable",
     shardIndex: 0, 
     shardInit: 1,
     shardCount: 1,
