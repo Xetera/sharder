@@ -1,0 +1,17 @@
+import { IConfig } from "./interface"
+
+const config: IConfig = {
+    ignorePackets: [
+        "PRESENCE_UPDATE",
+        "TYPING_START"
+    ],
+    rabbitUrl: "amqp://127.0.0.1",
+    rabbitChannel: "stable",
+    rabbitExchange: "gateway",
+    shardIndex: 0, 
+    shardInit: 1,
+    shardCount: 1,
+    token: "token-here",
+};
+
+export default config;

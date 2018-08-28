@@ -1,5 +1,6 @@
 node_modules/
-config*.js
+*.js
 config*.ts
-*.config.js
 *.config.ts
+dist/
+\.vscode/
